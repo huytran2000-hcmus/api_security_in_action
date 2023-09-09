@@ -17,6 +17,7 @@ import org.h2.jdbcx.JdbcConnectionPool;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.SpaceController;
 
 import spark.Request;
@@ -31,6 +32,12 @@ public class Main {
         datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
 
+        var rateLimiter = RateLimiter.create(2);
+        before((request, response) -> {
+            if (!rateLimiter.tryAcquire()) {
+                response.header("Retry-After", "2");
+            }
+        });
         before((request, response) -> {
             if (request.requestMethod().equals("POST") && !request.contentType().equals("application/json")) {
                 halt(415, new JSONObject().put("error", "Only support application/json").toString());
