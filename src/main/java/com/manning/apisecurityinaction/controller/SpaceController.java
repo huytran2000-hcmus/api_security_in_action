@@ -23,14 +23,13 @@ public class SpaceController {
         }
 
         var owner = json.getString("owner");
-        if (!owner.matches("[a-zA-Z][a-zA-Z0-9]{1,29}")) {
-            throw new IllegalArgumentException("invalid username");
+        var subject = request.attribute("username");
+        if (!owner.equals(subject)) {
+            throw new IllegalArgumentException("owner must match authenticated user");
         }
 
         return database.withTransaction(tx -> {
             var spaceId = database.findUniqueLong("SELECT NEXT VALUE FOR space_id_seq");
-            // database.updateUnique("INSERT INTO spaces (space_id, name, owner) "
-            // + "VALUES(?, ?, ?);", spaceId, spaceName, owner);
             database.updateUnique("INSERT INTO spaces (space_id, name, owner) VALUES(" + spaceId + ", '" + spaceName
                     + "', '" + owner + "');");
 

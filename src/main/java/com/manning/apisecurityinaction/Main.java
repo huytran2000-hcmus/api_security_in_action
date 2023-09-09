@@ -19,6 +19,7 @@ import org.json.JSONObject;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.SpaceController;
+import com.manning.apisecurityinaction.controller.UserController;
 
 import spark.Request;
 import spark.Response;
@@ -44,6 +45,10 @@ public class Main {
             }
         });
 
+        var userController = new UserController(database);
+        post("/users", userController::registerUser);
+
+        before(userController::authenticate);
         var spaceController = new SpaceController(database);
         post("/spaces", spaceController::createSpace);
 

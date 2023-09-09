@@ -1,0 +1,69 @@
+package com.manning.apisecurityinaction.controller;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+import org.dalesbred.Database;
+import org.json.JSONObject;
+
+import com.lambdaworks.crypto.SCryptUtil;
+
+import spark.Request;
+import spark.Response;
+
+public class UserController {
+    private static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
+    private static final String authPrefix = "Basic ";
+    private final Database database;
+
+    public UserController(Database database) {
+        this.database = database;
+    }
+
+    public JSONObject registerUser(Request request, Response response) throws Exception {
+        var json = new JSONObject(request.body());
+        var username = json.getString("username");
+        var password = json.getString("password");
+
+        if (!username.matches(USERNAME_PATTERN)) {
+            throw new IllegalArgumentException("invalid username");
+        }
+
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("password must be at least 8 characters");
+        }
+
+        var hash = SCryptUtil.scrypt(password, 32768, 8, 1);
+        database.updateUnique("INSERT INTO users(user_id, pw_hash)" +
+                "VALUES(?, ?)", username, hash);
+        response.status(201);
+        response.header("Location", "/user/" + username);
+        return new JSONObject().put("username", username);
+    }
+
+    public void authenticate(Request request, Response response) {
+        var authHeader = request.headers("Authorization");
+        if (authHeader == null || !authHeader.startsWith(authPrefix)) {
+            return;
+        }
+
+        var offset = authPrefix.length();
+        var credentials = new String(Base64.getDecoder().decode(
+                authHeader.substring(offset)), StandardCharsets.UTF_8);
+
+        var parts = credentials.split(":");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("invalid Authorization header");
+        }
+
+        var username = parts[0];
+        var password = parts[1];
+
+        var hash = database.findOptional(String.class,
+                "SELECT pw_hash FROM users where user_id = ?", username);
+        if (hash.isPresent() &&
+                SCryptUtil.check(password, hash.get())) {
+            request.attribute("username", username);
+        }
+    }
+}
