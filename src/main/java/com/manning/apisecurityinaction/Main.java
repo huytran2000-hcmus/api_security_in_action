@@ -7,6 +7,7 @@ import static spark.Spark.halt;
 import static spark.Spark.internalServerError;
 import static spark.Spark.notFound;
 import static spark.Spark.post;
+import static spark.Spark.secure;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -26,6 +27,10 @@ import spark.Response;
 
 public class Main {
     public static void main(String[] args) throws Exception {
+        secure("localhost.p12",
+                "changeit",
+                null,
+                null);
         var datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter", "password");
         var database = Database.forDataSource(datasource);
         createTables(database);
@@ -60,6 +65,7 @@ public class Main {
             response.header("Cache-Control", "no-store");
             response.header("X-XSS-Protection", "0");
             response.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
+            // response.header("Strict-Transport-Sercurity", "max-age=31536000");
         });
 
         internalServerError(new JSONObject().put("error", "internal server error").toString());
