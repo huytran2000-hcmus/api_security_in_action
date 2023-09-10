@@ -27,3 +27,16 @@ CREATE TABLE users (
 );
 
 GRANT SELECT, INSERT ON users to natter_api_user;
+
+CREATE TABLE audit_log (
+    audit_id INT NULL,
+    user_id VARCHAR(30) NULL,
+    path VARCHAR(30) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    status INT NULL,
+    audit_time TIMESTAMP NOT NULL
+);
+
+CREATE SEQUENCE audit_id_seq;
+
+GRANT SELECT, INSERT ON audit_log TO natter_api_user;

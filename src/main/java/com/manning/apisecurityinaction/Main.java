@@ -3,6 +3,7 @@ package com.manning.apisecurityinaction;
 import static spark.Spark.afterAfter;
 import static spark.Spark.before;
 import static spark.Spark.exception;
+import static spark.Spark.get;
 import static spark.Spark.halt;
 import static spark.Spark.internalServerError;
 import static spark.Spark.notFound;
@@ -19,6 +20,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.manning.apisecurityinaction.controller.AuditController;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.UserController;
 
@@ -37,6 +39,9 @@ public class Main {
 
         datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
+        var userCtrl = new UserController(database);
+        var auditCtrl = new AuditController(database);
+        var spaceCtrl = new SpaceController(database);
 
         var rateLimiter = RateLimiter.create(2);
         before((request, response) -> {
@@ -50,12 +55,14 @@ public class Main {
             }
         });
 
-        var userController = new UserController(database);
-        post("/users", userController::registerUser);
+        before(userCtrl::authenticate);
+        get("/logs", auditCtrl::readAuditLogs);
 
-        before(userController::authenticate);
-        var spaceController = new SpaceController(database);
-        post("/spaces", spaceController::createSpace);
+        before(auditCtrl::logRequest);
+
+        post("/users", userCtrl::registerUser);
+
+        post("/spaces", spaceCtrl::createSpace);
 
         afterAfter((request, response) -> {
             response.header("Server", "");
@@ -67,6 +74,7 @@ public class Main {
             response.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
             // response.header("Strict-Transport-Sercurity", "max-age=31536000");
         });
+        afterAfter(auditCtrl::logResponse);
 
         internalServerError(new JSONObject().put("error", "internal server error").toString());
         notFound(new JSONObject().put("error", "not found").toString());

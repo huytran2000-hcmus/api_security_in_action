@@ -12,6 +12,8 @@ import spark.Request;
 import spark.Response;
 
 public class UserController {
+    public static final String authAttrKey = "user_id";
+
     private static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
     private static final String authPrefix = "Basic ";
     private final Database database;
@@ -63,7 +65,7 @@ public class UserController {
                 "SELECT pw_hash FROM users where user_id = ?", username);
         if (hash.isPresent() &&
                 SCryptUtil.check(password, hash.get())) {
-            request.attribute("username", username);
+            request.attribute(authAttrKey, username);
         }
     }
 }

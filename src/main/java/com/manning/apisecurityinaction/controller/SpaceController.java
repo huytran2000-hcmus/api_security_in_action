@@ -23,7 +23,7 @@ public class SpaceController {
         }
 
         var owner = json.getString("owner");
-        var subject = request.attribute("username");
+        var subject = request.attribute(UserController.authAttrKey);
         if (!owner.equals(subject)) {
             throw new IllegalArgumentException("owner must match authenticated user");
         }
