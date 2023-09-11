@@ -14,7 +14,7 @@ import spark.Response;
 public class UserController {
     public static final String authAttrKey = "user_id";
 
-    private static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
+    public static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
     private static final String authPrefix = "Basic ";
     private final Database database;
 

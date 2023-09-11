@@ -2,6 +2,7 @@ package com.manning.apisecurityinaction;
 
 import static spark.Spark.afterAfter;
 import static spark.Spark.before;
+import static spark.Spark.delete;
 import static spark.Spark.exception;
 import static spark.Spark.get;
 import static spark.Spark.halt;
@@ -21,6 +22,7 @@ import org.json.JSONObject;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.AuditController;
+import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.UserController;
 
@@ -42,6 +44,7 @@ public class Main {
         var userCtrl = new UserController(database);
         var auditCtrl = new AuditController(database);
         var spaceCtrl = new SpaceController(database);
+        var moderatorCtrl = new Moderator(database);
 
         var rateLimiter = RateLimiter.create(2);
         before((request, response) -> {
@@ -63,6 +66,13 @@ public class Main {
         post("/users", userCtrl::registerUser);
 
         post("/spaces", spaceCtrl::createSpace);
+        get("/spaces/:spaceId", spaceCtrl::readSpace);
+
+        post("/spaces/:spaceId/messages", spaceCtrl::postMessage);
+        get("/spaces/:spaceId/messages/:msgId", spaceCtrl::readMessage);
+        get("/spaces/:spaceId/messages", spaceCtrl::findMessages);
+
+        delete("/spaces/:spaceId/messages/:msgId", moderatorCtrl::deletePost);
 
         afterAfter((request, response) -> {
             response.header("Server", "");
