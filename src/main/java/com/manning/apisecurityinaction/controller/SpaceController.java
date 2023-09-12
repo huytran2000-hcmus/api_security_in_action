@@ -36,9 +36,9 @@ public class SpaceController {
             var spaceId = database.findUniqueLong("SELECT NEXT VALUE FOR space_id_seq");
             database.updateUnique("INSERT INTO spaces (space_id, name, owner) VALUES(?, ?, ?);", spaceId, spaceName,
                     owner);
-            // database.updateUnique("INSERT INTO permissions (space_id, user_id, perms)
-            // VALUES(?, ?, ?);", spaceId, owner,
-            // "rwd");
+            database.updateUnique("INSERT INTO permissions (space_id, user_id, perms) " +
+                    "VALUES(?, ?, ?);",
+                    spaceId, owner, "rwd");
 
             response.status(201);
             var uri = "/spaces/" + spaceId;
@@ -46,6 +46,27 @@ public class SpaceController {
 
             return new JSONObject().put("name", spaceName).put("uri", uri).put("owner", owner);
         });
+    }
+
+    public JSONObject addMember(Request request, Response response) {
+        var json = new JSONObject(request.body());
+        var spaceId = Long.parseLong(request.params(":spaceId"));
+        var userToAdd = json.getString("username");
+        var perms = json.getString("permissions");
+
+        if (!perms.matches("r?w?d?")) {
+            throw new IllegalArgumentException("invalid permissions");
+        }
+
+        database.updateUnique(
+                "INSERT INTO permissions(space_id, user_id, perms) " +
+                        "VALUES(?, ?, ?)",
+                spaceId, userToAdd, perms);
+
+        response.status(200);
+        return new JSONObject()
+                .put("username", userToAdd)
+                .put("permissions", perms);
     }
 
     public Space readSpace(Request request, Response response) {

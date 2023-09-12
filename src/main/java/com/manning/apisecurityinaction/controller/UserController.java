@@ -1,5 +1,7 @@
 package com.manning.apisecurityinaction.controller;
 
+import static spark.Spark.halt;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -8,6 +10,7 @@ import org.json.JSONObject;
 
 import com.lambdaworks.crypto.SCryptUtil;
 
+import spark.Filter;
 import spark.Request;
 import spark.Response;
 
@@ -67,5 +70,36 @@ public class UserController {
                 SCryptUtil.check(password, hash.get())) {
             request.attribute(authAttrKey, username);
         }
+    }
+
+    public void requireAuthentication(Request request, Response response) {
+        var username = request.attribute(authAttrKey);
+        if (username == null) {
+            response.status(401);
+            response.header("WWW-Authenticate", "Basic realm=\"/\" charset=\"UTF-8\"");
+            halt(401);
+        }
+    }
+
+    public Filter requirePermission(String method, String permission) {
+        return (request, response) -> {
+            if (!method.equalsIgnoreCase(request.requestMethod())) {
+                return;
+            }
+
+            requireAuthentication(request, response);
+            var spaceId = Long.parseLong(request.params(":spaceId"));
+            var username = (String) request.attribute(authAttrKey);
+
+            var perms = database.findOptional(String.class,
+                    "SELECT perms " +
+                            "FROM permissions " +
+                            "WHERE user_id = ? AND space_id = ?",
+                    username, spaceId).orElse("");
+
+            if (!perms.contains(permission)) {
+                halt(403);
+            }
+        };
     }
 }

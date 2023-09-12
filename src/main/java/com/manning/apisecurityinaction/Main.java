@@ -65,14 +65,26 @@ public class Main {
 
         post("/users", userCtrl::registerUser);
 
+        before("/spaces", userCtrl::requireAuthentication);
         post("/spaces", spaceCtrl::createSpace);
+
+        before("/spaces/:spaceId", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId", spaceCtrl::readSpace);
 
+        before("/spaces/:spaceId/messages", userCtrl.requirePermission("POST", "r"));
         post("/spaces/:spaceId/messages", spaceCtrl::postMessage);
+
+        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId/messages/:msgId", spaceCtrl::readMessage);
+
+        before("/spaces/:spaceId/message", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId/messages", spaceCtrl::findMessages);
 
+        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("DELETE", "d"));
         delete("/spaces/:spaceId/messages/:msgId", moderatorCtrl::deletePost);
+
+        before("/spaces/:spaceId/members", userCtrl.requirePermission("POST", "rwd"));
+        post("/spaces/:spaceId/members", spaceCtrl::addMember);
 
         afterAfter((request, response) -> {
             response.header("Server", "");
