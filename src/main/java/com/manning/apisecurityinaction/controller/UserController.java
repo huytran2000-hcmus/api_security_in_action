@@ -77,7 +77,7 @@ public class UserController {
         var username = request.attribute(USERNAME_ATTR_KEY);
         if (username == null) {
             response.status(401);
-            // response.header("WWW-Authenticate", "Basic realm=\"/\" charset=\"UTF-8\"");
+            response.header("WWW-Authenticate", "Bearer");
             halt(401);
         }
     }

@@ -21,14 +21,14 @@ function createSpace(name, owner) {
     name: name,
     owner: owner,
   };
+  let token = window.localStorage.getItem("token");
 
   fetch(apiUrl + "/spaces", {
     method: "POST",
-    credentials: "include",
     body: JSON.stringify(data),
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": getCookie("csrfToken"),
+      Authorization: `Bearer ${token}`,
     },
   })
     .then((response) => {
@@ -44,15 +44,4 @@ function createSpace(name, owner) {
       console.log(`Create space: ${json.name}, ${json.uri}`);
     })
     .catch((error) => console.error("Error: ", error));
-}
-
-function getCookie(cookieName) {
-  var cookie = document.cookie
-    .split(";")
-    .map((item) => item.split("=").map((x) => decodeURIComponent(x.trim())))
-    .filter((item) => item[0] == cookieName)[0];
-
-  if (cookie) {
-    return cookie[1];
-  }
 }

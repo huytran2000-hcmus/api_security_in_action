@@ -21,7 +21,7 @@ public class CORSFilter implements Filter {
         response.header("Vary", "Origin");
         if (originHeader != null && originHeader != "" && allowOrigins.contains(originHeader)) {
             response.header("Access-Control-Allow-Origin", originHeader);
-            response.header("Access-Control-Allow-Credentials", "true");
+            // response.header("Access-Control-Allow-Credentials", "true");
         }
 
         if (isPreflightRequest(request)) {
@@ -30,7 +30,7 @@ public class CORSFilter implements Filter {
             }
 
             response.header("Access-Control-Allow-Methods", "GET, POST, DELETE");
-            response.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token");
+            response.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
             halt(204);
         }
     }

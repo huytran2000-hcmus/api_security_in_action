@@ -13,8 +13,10 @@ import static spark.Spark.post;
 import static spark.Spark.secure;
 import static spark.Spark.staticFiles;
 
+import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.KeyStore;
 
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
@@ -28,7 +30,8 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.CookieTokenStore;
+import com.manning.apisecurityinaction.token.DatabaseTokenStore;
+import com.manning.apisecurityinaction.token.HmacTokenStore;
 import com.manning.apisecurityinaction.token.TokenStore;
 
 import spark.Request;
@@ -39,7 +42,7 @@ public class Main {
         port(args.length > 0 ? Integer.parseInt(args[0]) : spark.Service.SPARK_DEFAULT_PORT);
 
         staticFiles.location("/public");
-        staticFiles.expireTime(0);
+        staticFiles.expireTime(1);
         secure("localhost.p12",
                 "changeit",
                 null,
@@ -50,7 +53,13 @@ public class Main {
 
         datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
-        TokenStore tokenStore = new CookieTokenStore();
+        var keyPassword = System.getProperty("keystore.password", "changeit").toCharArray();
+        var keyStore = KeyStore.getInstance("PKCS12");
+        keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
+        var macKey = keyStore.getKey("hmac-key", keyPassword);
+
+        TokenStore databaseTokenStore = new DatabaseTokenStore(database);
+        TokenStore tokenStore = new HmacTokenStore(databaseTokenStore, macKey);
         var userCtrl = new UserController(database);
         var auditCtrl = new AuditController(database);
         var spaceCtrl = new SpaceController(database);

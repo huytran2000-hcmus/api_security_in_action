@@ -29,12 +29,15 @@ public class TokenController {
     }
 
     public void validateToken(Request request, Response response) {
-        var tokenId = request.headers("X-CSRF-Token");
-        if (tokenId == null) {
+        var authHeader = request.headers("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return;
         }
+        var tokenId = authHeader.substring(7);
         store.read(request, tokenId).ifPresent(token -> {
             if (!now().isBefore(token.expiry)) {
+                response.header("WWW-Authenticate",
+                        "Bearer error=\"invalid_token\" \"error_description=\"Expired\"");
                 return;
             }
             request.attribute(UserController.USERNAME_ATTR_KEY, token.username);
@@ -44,11 +47,12 @@ public class TokenController {
     }
 
     public JSONObject logout(Request request, Response response) {
-        var tokenId = request.headers("X-CSRF-Token");
-        if (tokenId == null || tokenId == "") {
+        var authHeader = request.headers("Authorization");
+        if (authHeader == null || authHeader.startsWith("Bearer ")) {
             throw new IllegalArgumentException("missing token header");
         }
 
+        var tokenId = authHeader.substring(7);
         store.revoke(request, tokenId);
         response.status(200);
         return new JSONObject();

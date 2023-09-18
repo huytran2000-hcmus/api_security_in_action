@@ -19,7 +19,6 @@ function login(username, password) {
   let credentials = `Basic ${btoa(username + ":" + password)}`;
   fetch(`${apiUrl}/sessions`, {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Authorization: credentials,
@@ -28,7 +27,7 @@ function login(username, password) {
     .then((response) => {
       if (response.ok) {
         return response.json().then((json) => {
-          document.cookie = `csrfToken=${json.token};Secure;SameSite=strict`;
+          window.localStorage.setItem("token", json.token);
           window.location.replace("/natter.html");
         });
       }
