@@ -40,7 +40,7 @@ public class AuditController {
                     auditId,
                     request.requestMethod(),
                     request.pathInfo(),
-                    request.attribute(UserController.authAttrKey));
+                    request.attribute(UserController.USERNAME_ATTR_KEY));
         });
     }
 
@@ -53,7 +53,7 @@ public class AuditController {
                     request.requestMethod(),
                     request.pathInfo(),
                     response.status(),
-                    request.attribute(UserController.authAttrKey));
+                    request.attribute(UserController.USERNAME_ATTR_KEY));
         });
     }
 

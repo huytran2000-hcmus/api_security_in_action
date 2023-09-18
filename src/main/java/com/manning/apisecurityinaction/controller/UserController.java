@@ -15,7 +15,8 @@ import spark.Request;
 import spark.Response;
 
 public class UserController {
-    public static final String authAttrKey = "user_id";
+    public static final String USERNAME_ATTR_KEY = "user_id";
+    public static final String ATTRS_ATTR_KEY = "attributes";
 
     public static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
     private static final String authPrefix = "Basic ";
@@ -68,15 +69,15 @@ public class UserController {
                 "SELECT pw_hash FROM users where user_id = ?", username);
         if (hash.isPresent() &&
                 SCryptUtil.check(password, hash.get())) {
-            request.attribute(authAttrKey, username);
+            request.attribute(USERNAME_ATTR_KEY, username);
         }
     }
 
     public void requireAuthentication(Request request, Response response) {
-        var username = request.attribute(authAttrKey);
+        var username = request.attribute(USERNAME_ATTR_KEY);
         if (username == null) {
             response.status(401);
-            response.header("WWW-Authenticate", "Basic realm=\"/\" charset=\"UTF-8\"");
+            // response.header("WWW-Authenticate", "Basic realm=\"/\" charset=\"UTF-8\"");
             halt(401);
         }
     }
@@ -89,7 +90,7 @@ public class UserController {
 
             requireAuthentication(request, response);
             var spaceId = Long.parseLong(request.params(":spaceId"));
-            var username = (String) request.attribute(authAttrKey);
+            var username = (String) request.attribute(USERNAME_ATTR_KEY);
 
             var perms = database.findOptional(String.class,
                     "SELECT perms " +

@@ -10,6 +10,7 @@ import static spark.Spark.internalServerError;
 import static spark.Spark.notFound;
 import static spark.Spark.post;
 import static spark.Spark.secure;
+import static spark.Spark.staticFiles;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -24,13 +25,18 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.AuditController;
 import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
+import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
+import com.manning.apisecurityinaction.token.CookieTokenStore;
+import com.manning.apisecurityinaction.token.TokenStore;
 
 import spark.Request;
 import spark.Response;
 
 public class Main {
     public static void main(String[] args) throws Exception {
+        staticFiles.location("/public");
+        staticFiles.expireTime(0);
         secure("localhost.p12",
                 "changeit",
                 null,
@@ -41,10 +47,12 @@ public class Main {
 
         datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
+        TokenStore tokenStore = new CookieTokenStore();
         var userCtrl = new UserController(database);
         var auditCtrl = new AuditController(database);
         var spaceCtrl = new SpaceController(database);
         var moderatorCtrl = new Moderator(database);
+        var tokenCtrl = new TokenController(tokenStore);
 
         var rateLimiter = RateLimiter.create(2);
         before((request, response) -> {
@@ -57,11 +65,15 @@ public class Main {
                 halt(415, new JSONObject().put("error", "Only support application/json").toString());
             }
         });
-
         before(userCtrl::authenticate);
-        get("/logs", auditCtrl::readAuditLogs);
-
+        before(tokenCtrl::validateToken);
         before(auditCtrl::logRequest);
+
+        before("/sessions", userCtrl::requireAuthentication);
+        post("/sessions", tokenCtrl::login);
+        delete("/sessions", tokenCtrl::logout);
+
+        get("/logs", auditCtrl::readAuditLogs);
 
         post("/users", userCtrl::registerUser);
 
@@ -94,7 +106,7 @@ public class Main {
             response.header("Cache-Control", "no-store");
             response.header("X-XSS-Protection", "0");
             response.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
-            // response.header("Strict-Transport-Sercurity", "max-age=31536000");
+            response.header("Strict-Transport-Sercurity", "max-age=31536000");
         });
         afterAfter(auditCtrl::logResponse);
 
