@@ -8,6 +8,7 @@ import static spark.Spark.get;
 import static spark.Spark.halt;
 import static spark.Spark.internalServerError;
 import static spark.Spark.notFound;
+import static spark.Spark.port;
 import static spark.Spark.post;
 import static spark.Spark.secure;
 import static spark.Spark.staticFiles;
@@ -35,6 +36,8 @@ import spark.Response;
 
 public class Main {
     public static void main(String[] args) throws Exception {
+        port(args.length > 0 ? Integer.parseInt(args[0]) : spark.Service.SPARK_DEFAULT_PORT);
+
         staticFiles.location("/public");
         staticFiles.expireTime(0);
         secure("localhost.p12",
@@ -53,6 +56,8 @@ public class Main {
         var spaceCtrl = new SpaceController(database);
         var moderatorCtrl = new Moderator(database);
         var tokenCtrl = new TokenController(tokenStore);
+
+        before(new CORSFilter("https://localhost:9999"));
 
         var rateLimiter = RateLimiter.create(2);
         before((request, response) -> {

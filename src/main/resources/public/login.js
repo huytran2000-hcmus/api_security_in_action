@@ -16,10 +16,10 @@ function processLoginSubmit(e) {
 }
 
 function login(username, password) {
-  console.log("You are gay");
   let credentials = `Basic ${btoa(username + ":" + password)}`;
   fetch(`${apiUrl}/sessions`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Authorization: credentials,
