@@ -32,12 +32,14 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
+import com.manning.apisecurityinaction.token.EncryptedTokenStore;
 import com.manning.apisecurityinaction.token.JwtTokenStore;
 import com.manning.apisecurityinaction.token.TokenStore;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 
+import software.pando.crypto.nacl.SecretBox;
 import spark.Request;
 import spark.Response;
 
@@ -66,6 +68,10 @@ public class Main {
         var singer = new MACSigner((SecretKey) macKey);
         var verifier = new MACVerifier((SecretKey) macKey);
         TokenStore tokenStore = new JwtTokenStore(singer, algorithm, verifier, "https://localhost:4567");
+
+        var encKey = keyStore.getKey("aes-key", keyPassword);
+        var naclKey = SecretBox.key(encKey.getEncoded());
+        tokenStore = new EncryptedTokenStore(naclKey, tokenStore);
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
