@@ -18,6 +18,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 
+import javax.crypto.SecretKey;
+
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
 import org.h2.jdbcx.JdbcConnectionPool;
@@ -30,9 +32,11 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.HmacTokenStore;
-import com.manning.apisecurityinaction.token.JsonTokenStore;
+import com.manning.apisecurityinaction.token.JwtTokenStore;
 import com.manning.apisecurityinaction.token.TokenStore;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 
 import spark.Request;
 import spark.Response;
@@ -56,15 +60,18 @@ public class Main {
         var keyPassword = System.getProperty("keystore.password", "changeit").toCharArray();
         var keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
-        var macKey = keyStore.getKey("hmac-key", keyPassword);
 
-        TokenStore tokenStore = new JsonTokenStore();
-        tokenStore = new HmacTokenStore(tokenStore, macKey);
+        var macKey = keyStore.getKey("hmac-key", keyPassword);
+        var algorithm = JWSAlgorithm.HS256;
+        var singer = new MACSigner((SecretKey) macKey);
+        var verifier = new MACVerifier((SecretKey) macKey);
+        TokenStore tokenStore = new JwtTokenStore(singer, algorithm, verifier, "https://localhost:4567");
+
+        var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
         var auditCtrl = new AuditController(database);
         var spaceCtrl = new SpaceController(database);
         var moderatorCtrl = new Moderator(database);
-        var tokenCtrl = new TokenController(tokenStore);
 
         before(new CORSFilter("https://localhost:9999"));
 
