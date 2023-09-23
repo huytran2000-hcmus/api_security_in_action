@@ -32,14 +32,9 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.EncryptedTokenStore;
-import com.manning.apisecurityinaction.token.JwtTokenStore;
+import com.manning.apisecurityinaction.token.EncryptedJwtTokenStore;
 import com.manning.apisecurityinaction.token.TokenStore;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
 
-import software.pando.crypto.nacl.SecretBox;
 import spark.Request;
 import spark.Response;
 
@@ -63,15 +58,15 @@ public class Main {
         var keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
 
-        var macKey = keyStore.getKey("hmac-key", keyPassword);
-        var algorithm = JWSAlgorithm.HS256;
-        var singer = new MACSigner((SecretKey) macKey);
-        var verifier = new MACVerifier((SecretKey) macKey);
-        TokenStore tokenStore = new JwtTokenStore(singer, algorithm, verifier, "https://localhost:4567");
+        // var macKey = keyStore.getKey("hmac-key", keyPassword);
+        // var algorithm = JWSAlgorithm.HS256;
+        // var singer = new MACSigner((SecretKey) macKey);
+        // var verifier = new MACVerifier((SecretKey) macKey);
+        // TokenStore tokenStore = new JwtTokenStore(singer, algorithm, verifier,
+        // "https://localhost:4567");
 
         var encKey = keyStore.getKey("aes-key", keyPassword);
-        var naclKey = SecretBox.key(encKey.getEncoded());
-        tokenStore = new EncryptedTokenStore(naclKey, tokenStore);
+        TokenStore tokenStore = new EncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567");
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
