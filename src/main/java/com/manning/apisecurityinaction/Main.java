@@ -32,7 +32,9 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.EncryptedJwtTokenStore;
+import com.manning.apisecurityinaction.token.DatabaseTokenStore;
+import com.manning.apisecurityinaction.token.RevokableEncryptedJwtTokenStore;
+import com.manning.apisecurityinaction.token.SecureTokenStore;
 
 import spark.Request;
 import spark.Response;
@@ -57,15 +59,10 @@ public class Main {
         var keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
 
-        // var macKey = keyStore.getKey("hmac-key", keyPassword);
-        // var algorithm = JWSAlgorithm.HS256;
-        // var singer = new MACSigner((SecretKey) macKey);
-        // var verifier = new MACVerifier((SecretKey) macKey);
-        // TokenStore tokenStore = new JwtTokenStore(singer, algorithm, verifier,
-        // "https://localhost:4567");
-
+        var allowlistStore = new DatabaseTokenStore(database);
         var encKey = keyStore.getKey("aes-key", keyPassword);
-        var tokenStore = new EncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567");
+        SecureTokenStore tokenStore = new RevokableEncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567",
+                allowlistStore);
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
