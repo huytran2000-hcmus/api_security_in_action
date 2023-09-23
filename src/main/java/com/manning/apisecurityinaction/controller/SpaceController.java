@@ -84,9 +84,9 @@ public class SpaceController {
 
     public JSONObject postMessage(Request request, Response response) {
         var json = new JSONObject(request.body());
-        var user = json.getString("author");
-        if (!user.matches(UserController.USERNAME_PATTERN)) {
-            throw new IllegalArgumentException("invalid author");
+        var userId = json.getString("author");
+        if (!userId.equals(request.attribute(UserController.USERNAME_ATTR_KEY))) {
+            throw new IllegalArgumentException("author must match authenticated user");
         }
 
         var message = json.getString("message");
@@ -100,7 +100,7 @@ public class SpaceController {
             var msgId = database.findUniqueLong("SELECT NEXT VALUE FOR msg_id_seq");
             database.updateUnique(
                     "INSERT INTO messages(msg_id, author, space_id, msg_time, msg_text) VALUES(? ,?, ?, current_timestamp, ?)",
-                    msgId, user, spaceId, message);
+                    msgId, userId, spaceId, message);
 
             response.status(201);
             var uri = "/spaces/" + spaceId + "/messages/" + msgId;
