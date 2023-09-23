@@ -10,13 +10,21 @@ import javax.crypto.Mac;
 
 import spark.Request;
 
-public class HmacTokenStore implements TokenStore {
+public class HmacTokenStore implements SecureTokenStore {
     private final TokenStore delegate;
     private final Key macKey;
 
-    public HmacTokenStore(TokenStore store, Key key) {
+    private HmacTokenStore(TokenStore store, Key key) {
         this.delegate = store;
         this.macKey = key;
+    }
+
+    public static SecureTokenStore wrap(ConfidentialTokenStore store, Key key) {
+        return new HmacTokenStore(store, key);
+    }
+
+    public static AuthenticatedTokenStore wrap(TokenStore store, Key key) {
+        return new HmacTokenStore(store, key);
     }
 
     @Override

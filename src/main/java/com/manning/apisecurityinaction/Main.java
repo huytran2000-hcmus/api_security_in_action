@@ -33,7 +33,6 @@ import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
 import com.manning.apisecurityinaction.token.EncryptedJwtTokenStore;
-import com.manning.apisecurityinaction.token.TokenStore;
 
 import spark.Request;
 import spark.Response;
@@ -66,7 +65,7 @@ public class Main {
         // "https://localhost:4567");
 
         var encKey = keyStore.getKey("aes-key", keyPassword);
-        TokenStore tokenStore = new EncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567");
+        var tokenStore = new EncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567");
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);

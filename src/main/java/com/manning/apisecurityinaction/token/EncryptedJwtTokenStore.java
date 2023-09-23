@@ -8,9 +8,9 @@ import java.util.Set;
 import javax.crypto.SecretKey;
 
 import com.nimbusds.jose.EncryptionMethod;
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWEAlgorithm;
 import com.nimbusds.jose.JWEHeader;
-import com.nimbusds.jose.KeyLengthException;
 import com.nimbusds.jose.crypto.DirectDecrypter;
 import com.nimbusds.jose.crypto.DirectEncrypter;
 import com.nimbusds.jwt.EncryptedJWT;
@@ -18,7 +18,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 
 import spark.Request;
 
-public class EncryptedJwtTokenStore implements TokenStore {
+public class EncryptedJwtTokenStore implements SecureTokenStore {
     private final SecretKey encKey;
     private final String audience;
 
@@ -32,8 +32,7 @@ public class EncryptedJwtTokenStore implements TokenStore {
         var claimBuilder = new JWTClaimsSet.Builder()
                 .subject(token.username)
                 .audience(audience)
-                .expirationTime(Date.from(token.expiry))
-                .claim("attrs", token.attributes);
+                .expirationTime(Date.from(token.expiry));
         token.attributes.forEach(claimBuilder::claim);
 
         var header = new JWEHeader(JWEAlgorithm.DIR, EncryptionMethod.A128CBC_HS256);
@@ -52,7 +51,9 @@ public class EncryptedJwtTokenStore implements TokenStore {
     public Optional<Token> read(Request request, String tokenId) {
         try {
             var jwt = EncryptedJWT.parse(tokenId);
-            var decryptor = new DirectDecrypter(encKey);
+
+            var decrypter = new DirectDecrypter(encKey);
+            jwt.decrypt(decrypter);
 
             var claims = jwt.getJWTClaimsSet();
             if (!claims.getAudience().contains(audience)) {
@@ -64,7 +65,7 @@ public class EncryptedJwtTokenStore implements TokenStore {
             var token = new Token(username, expiry);
             var ignores = Set.of("sub", "exp", "aud");
             for (var attr : claims.getClaims().keySet()) {
-                if (!ignores.contains(attr)) {
+                if (ignores.contains(attr)) {
                     continue;
                 }
                 token.attributes.put(attr, (String) claims.getClaim(attr));
@@ -72,7 +73,7 @@ public class EncryptedJwtTokenStore implements TokenStore {
 
             return Optional.of(token);
 
-        } catch (ParseException | KeyLengthException e) {
+        } catch (ParseException | JOSEException e) {
             return Optional.empty();
         }
     }

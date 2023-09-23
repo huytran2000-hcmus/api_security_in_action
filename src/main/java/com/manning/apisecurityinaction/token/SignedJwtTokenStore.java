@@ -14,13 +14,13 @@ import com.nimbusds.jwt.SignedJWT;
 
 import spark.Request;
 
-public class JwtTokenStore implements TokenStore {
+public class SignedJwtTokenStore implements AuthenticatedTokenStore {
     private final JWSSigner singer;
     private final JWSAlgorithm algorithm;
     private final JWSVerifier verifier;
     private final String audience;
 
-    public JwtTokenStore(JWSSigner signer, JWSAlgorithm algorithm, JWSVerifier verifier, String audience) {
+    public SignedJwtTokenStore(JWSSigner signer, JWSAlgorithm algorithm, JWSVerifier verifier, String audience) {
         this.singer = signer;
         this.algorithm = algorithm;
         this.verifier = verifier;

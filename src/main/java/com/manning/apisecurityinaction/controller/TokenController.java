@@ -6,15 +6,16 @@ import java.time.temporal.ChronoUnit;
 
 import org.json.JSONObject;
 
+import com.manning.apisecurityinaction.token.SecureTokenStore;
 import com.manning.apisecurityinaction.token.TokenStore;
 
 import spark.Request;
 import spark.Response;
 
 public class TokenController {
-    private final TokenStore store;
+    private final SecureTokenStore store;
 
-    public TokenController(TokenStore store) {
+    public TokenController(SecureTokenStore store) {
         this.store = store;
     }
 

@@ -8,7 +8,7 @@ import java.util.Optional;
 
 import spark.Request;
 
-public class CookieTokenStore implements TokenStore {
+public class CookieTokenStore implements SecureTokenStore {
     public String create(Request request, Token token) {
         var session = request.session(false);
         if (session != null) {
