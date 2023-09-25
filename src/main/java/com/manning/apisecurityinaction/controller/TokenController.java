@@ -54,7 +54,7 @@ public class TokenController {
 
     public JSONObject logout(Request request, Response response) {
         var authHeader = request.headers("Authorization");
-        if (authHeader == null || authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new IllegalArgumentException("missing token header");
         }
 
