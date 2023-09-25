@@ -3,6 +3,7 @@ package com.manning.apisecurityinaction.token;
 import java.sql.Date;
 import java.text.ParseException;
 import java.util.Optional;
+import java.util.Set;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -14,7 +15,7 @@ import com.nimbusds.jwt.SignedJWT;
 
 import spark.Request;
 
-public class SignedJwtTokenStore implements AuthenticatedTokenStore {
+public class SignedJwtTokenStore implements SecureTokenStore {
     private final JWSSigner singer;
     private final JWSAlgorithm algorithm;
     private final JWSVerifier verifier;
@@ -29,14 +30,14 @@ public class SignedJwtTokenStore implements AuthenticatedTokenStore {
 
     @Override
     public String create(Request request, Token token) {
-        var claimSets = new JWTClaimsSet.Builder()
+        var claimBuilder = new JWTClaimsSet.Builder()
                 .subject(token.username)
                 .audience(audience)
-                .expirationTime(Date.from(token.expiry))
-                .claim("attrs", token.attributes)
-                .build();
+                .expirationTime(Date.from(token.expiry));
+        token.attributes.forEach(claimBuilder::claim);
+
         var header = new JWSHeader(algorithm);
-        var jwt = new SignedJWT(header, claimSets);
+        var jwt = new SignedJWT(header, claimBuilder.build());
         try {
             jwt.sign(singer);
             return jwt.serialize();
@@ -60,8 +61,13 @@ public class SignedJwtTokenStore implements AuthenticatedTokenStore {
             var userId = claims.getSubject();
             var expiry = claims.getExpirationTime().toInstant();
             var token = new Token(userId, expiry);
-            var attrs = claims.getJSONObjectClaim("attrs");
-            attrs.forEach((key, value) -> token.attributes.put(key, (String) value));
+            var ignores = Set.of("sub", "exp", "aud");
+            for (var attr : claims.getClaims().keySet()) {
+                if (ignores.contains(attr)) {
+                    continue;
+                }
+                token.attributes.put(attr, (String) claims.getClaim(attr));
+            }
 
             return Optional.of(token);
         } catch (ParseException | JOSEException e) {

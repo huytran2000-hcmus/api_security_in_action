@@ -32,9 +32,10 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.DatabaseTokenStore;
-import com.manning.apisecurityinaction.token.RevokableEncryptedJwtTokenStore;
-import com.manning.apisecurityinaction.token.SecureTokenStore;
+import com.manning.apisecurityinaction.token.SignedJwtTokenStore;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 
 import spark.Request;
 import spark.Response;
@@ -59,10 +60,16 @@ public class Main {
         var keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
 
-        var allowlistStore = new DatabaseTokenStore(database);
-        var encKey = keyStore.getKey("aes-key", keyPassword);
-        SecureTokenStore tokenStore = new RevokableEncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567",
-                allowlistStore);
+        // var allowlistStore = new DatabaseTokenStore(database);
+        // var encKey = keyStore.getKey("aes-key", keyPassword);
+        // SecureTokenStore tokenStore = new RevokableEncryptedJwtTokenStore((SecretKey)
+        // encKey, "https://localhost:4567",
+        // allowlistStore);
+        var macKey = keyStore.getKey("hmac-key", keyPassword);
+        var algorithm = JWSAlgorithm.HS256;
+        var singer = new MACSigner((SecretKey) macKey);
+        var verifier = new MACVerifier((SecretKey) macKey);
+        var tokenStore = new SignedJwtTokenStore(singer, algorithm, verifier, "https://localhost:4567");
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
@@ -87,6 +94,7 @@ public class Main {
         before(tokenCtrl::validateToken);
         before(auditCtrl::logRequest);
 
+        before("/sessions", userCtrl.requireScope("POST", "full_access"));
         before("/sessions", userCtrl::requireAuthentication);
         post("/sessions", tokenCtrl::login);
         delete("/sessions", tokenCtrl::logout);
@@ -96,23 +104,28 @@ public class Main {
         post("/users", userCtrl::registerUser);
 
         before("/spaces", userCtrl::requireAuthentication);
+        before("/spaces", userCtrl.requireScope("POST", "create_space"));
         post("/spaces", spaceCtrl::createSpace);
 
+        before("/spaces/:spaceId", userCtrl.requireScope("POST", "read_space"));
         before("/spaces/:spaceId", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId", spaceCtrl::readSpace);
 
+        before("/spaces/:spaceId/messages", userCtrl.requireScope("POST", "create_message"));
         before("/spaces/:spaceId/messages", userCtrl.requirePermission("POST", "r"));
         post("/spaces/:spaceId/messages", spaceCtrl::postMessage);
 
+        before("/spaces/:spaceId/messages*", userCtrl.requireScope("GET", "read_message"));
+        before("/spaces/:spaceId/message", userCtrl.requirePermission("GET", "r"));
+        get("/spaces/:spaceId/messages", spaceCtrl::findMessages);
         before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId/messages/:msgId", spaceCtrl::readMessage);
 
-        before("/spaces/:spaceId/message", userCtrl.requirePermission("GET", "r"));
-        get("/spaces/:spaceId/messages", spaceCtrl::findMessages);
-
+        before("/spaces/:spaceId/messages/*", userCtrl.requireScope("DELETE", "delete_message"));
         before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("DELETE", "d"));
         delete("/spaces/:spaceId/messages/:msgId", moderatorCtrl::deletePost);
 
+        before("/spaces/:spaceId/members", userCtrl.requireScope("POST", "add_member"));
         before("/spaces/:spaceId/members", userCtrl.requirePermission("POST", "rwd"));
         post("/spaces/:spaceId/members", spaceCtrl::addMember);
 

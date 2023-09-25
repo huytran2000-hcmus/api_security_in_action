@@ -1,6 +1,7 @@
 package com.manning.apisecurityinaction.controller;
 
 import static java.time.Instant.now;
+import static spark.Spark.halt;
 
 import java.time.temporal.ChronoUnit;
 
@@ -13,6 +14,8 @@ import spark.Request;
 import spark.Response;
 
 public class TokenController {
+    private static final String DEFAULT_SCOPES = "create_space post_message read_message list_message " +
+            "delete_message add_member";
     private final SecureTokenStore store;
 
     public TokenController(SecureTokenStore store) {
@@ -21,9 +24,11 @@ public class TokenController {
 
     public JSONObject login(Request request, Response response) {
         String user_id = request.attribute(UserController.USERNAME_ATTR_KEY);
-
         var expiry = now().plus(10, ChronoUnit.MINUTES);
         var token = new TokenStore.Token(user_id, expiry);
+        var scope = request.queryParamOrDefault("scope", DEFAULT_SCOPES);
+        token.attributes.put("scope", scope);
+
         var tokenId = store.create(request, token);
         response.status(200);
         return new JSONObject().put("token", tokenId);
@@ -39,10 +44,10 @@ public class TokenController {
             if (!now().isBefore(token.expiry)) {
                 response.header("WWW-Authenticate",
                         "Bearer error=\"invalid_token\" \"error_description=\"Expired\"");
+                halt(401);
                 return;
             }
             request.attribute(UserController.USERNAME_ATTR_KEY, token.username);
-            request.attribute(UserController.ATTRS_ATTR_KEY, token.attributes);
             token.attributes.forEach(request::attribute);
         });
     }

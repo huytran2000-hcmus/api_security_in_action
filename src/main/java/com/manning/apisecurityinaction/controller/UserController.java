@@ -4,6 +4,7 @@ import static spark.Spark.halt;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Set;
 
 import org.dalesbred.Database;
 import org.json.JSONObject;
@@ -17,6 +18,7 @@ import spark.Response;
 public class UserController {
     public static final String USERNAME_ATTR_KEY = "user_id";
     public static final String ATTRS_ATTR_KEY = "attributes";
+    public static final String SCOPE_ATTR_KEY = "scope";
 
     public static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
     private static final String authPrefix = "Basic ";
@@ -99,6 +101,24 @@ public class UserController {
                     username, spaceId).orElse("");
 
             if (!perms.contains(permission)) {
+                halt(403);
+            }
+        };
+    }
+
+    public Filter requireScope(String method, String requireScope) {
+        return (request, response) -> {
+            if (!method.equalsIgnoreCase(method)) {
+                return;
+            }
+
+            var tokenScope = request.<String>attribute("scope");
+            if (tokenScope == null)
+                return;
+
+            if (!Set.of(tokenScope.split(" ")).contains(requireScope)) {
+                response.header("WWW-Authenticate", "Bearer error=\"insufficient_scope\"," +
+                        "scope=\"" + requireScope + "\"");
                 halt(403);
             }
         };
