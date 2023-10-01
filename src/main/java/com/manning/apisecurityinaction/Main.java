@@ -99,7 +99,7 @@ public class Main {
         // before("/sessions", userCtrl.requireScope("POST", "full_access"));
         // before("/sessions", userCtrl::requireAuthentication);
         // post("/sessions", tokenCtrl::login);
-        delete("/sessions", tokenCtrl::logout);
+        delete("/logout", tokenCtrl::logout);
 
         get("/logs", auditCtrl::readAuditLogs);
 
