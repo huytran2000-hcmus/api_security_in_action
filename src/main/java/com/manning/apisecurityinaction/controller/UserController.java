@@ -4,9 +4,11 @@ import static spark.Spark.halt;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import java.util.Set;
 
 import org.dalesbred.Database;
+import org.dalesbred.query.QueryBuilder;
 import org.json.JSONObject;
 
 import com.lambdaworks.crypto.SCryptUtil;
@@ -72,6 +74,12 @@ public class UserController {
         if (hash.isPresent() &&
                 SCryptUtil.check(password, hash.get())) {
             request.attribute(USERNAME_ATTR_KEY, username);
+
+            var groups = database.findAll(String.class, "SELECT DISTINCT group_id " +
+                    "FROM group_members " +
+                    "WHERE user_id = ?",
+                    username);
+            request.attribute("groups", groups);
         }
     }
 
@@ -94,13 +102,24 @@ public class UserController {
             var spaceId = Long.parseLong(request.params(":spaceId"));
             var username = (String) request.attribute(USERNAME_ATTR_KEY);
 
-            var perms = database.findOptional(String.class,
-                    "SELECT perms " +
-                            "FROM permissions " +
-                            "WHERE user_id = ? AND space_id = ?",
-                    username, spaceId).orElse("");
+            List<String> groups = request.attribute("groups");
 
-            if (!perms.contains(permission)) {
+            var queryBuilder = new QueryBuilder(
+                    "SELECT perms from permissions " +
+                            "WHERE space_id = ? " +
+                            "AND (user_or_group_id = ? ",
+                    spaceId,
+                    username);
+
+            if (groups != null) {
+                for (var group : groups) {
+                    queryBuilder.append("OR user_or_group_id = ? ", group);
+                }
+            }
+            queryBuilder.append(")");
+            var perms = database.findAll(String.class, queryBuilder.build());
+
+            if (perms.stream().noneMatch(p -> p.contains(permission))) {
                 halt(403);
             }
         };

@@ -36,7 +36,7 @@ public class SpaceController {
             var spaceId = database.findUniqueLong("SELECT NEXT VALUE FOR space_id_seq");
             database.updateUnique("INSERT INTO spaces (space_id, name, owner) VALUES(?, ?, ?);", spaceId, spaceName,
                     owner);
-            database.updateUnique("INSERT INTO permissions (space_id, user_id, perms) " +
+            database.updateUnique("INSERT INTO user_permissions (space_id, user_id, perms) " +
                     "VALUES(?, ?, ?);",
                     spaceId, owner, "rwd");
 
@@ -59,7 +59,7 @@ public class SpaceController {
         }
 
         database.updateUnique(
-                "INSERT INTO permissions(space_id, user_id, perms) " +
+                "INSERT INTO user_permissions(space_id, user_id, perms) " +
                         "VALUES(?, ?, ?)",
                 spaceId, userToAdd, perms);
 

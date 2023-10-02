@@ -66,7 +66,7 @@ public class OAuth2TokenStore implements SecureTokenStore {
                     .sslParameters(sslParams)
                     .sslContext(sslContext)
                     .build();
-        } catch (GeneralSecurityException | IOException ex) {
+        } catch (GeneralSecurityException | IOException e) {
             throw new RuntimeException(e);
         }
     }

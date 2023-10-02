@@ -39,13 +39,33 @@ CREATE TABLE audit_logs (
 CREATE SEQUENCE audit_id_seq;
 GRANT SELECT, INSERT ON audit_logs TO natter_api_user;
 
+CREATE TABLE group_members (
+    group_id VARCHAR(30) NOT NULL,
+    user_id VARCHAR(30) NOT NULL REFERENCES users(user_id)
+);
+CREATE INDEX group_members_user_id_idx on group_members(user_id);
+GRANT SELECT, DELETE ON group_members TO natter_api_user;
 
-CREATE TABLE permissions(
+CREATE TABLE user_permissions(
     space_id INT NOT NULL REFERENCES spaces(space_id),
     user_id VARCHAR(30) NOT NULL REFERENCES users(user_id),
     perms VARCHAR(3) NOT NULL,
     PRIMARY KEY (space_id, user_id)
 );
+GRANT SELECT, INSERT ON user_permissions TO natter_api_user;
+
+CREATE TABLE group_permissions(
+    space_id INT NOT NULL REFERENCES spaces(space_id),
+    user_id VARCHAR(30) NOT NULL REFERENCES users(user_id),
+    perms VARCHAR(3) NOT NULL,
+    PRIMARY KEY (space_id, user_id)
+);
+GRANT SELECT, INSERT ON group_permissions TO natter_api_user;
+
+CREATE VIEW permissions(space_id, user_or_group_id, perms) AS
+    SELECT space_id, user_id, perms from user_permissions
+    UNION ALL
+    SELECT space_id, user_id, perms from group_permissions;
 GRANT SELECT, INSERT ON permissions TO natter_api_user;
 
 CREATE TABLE tokens (

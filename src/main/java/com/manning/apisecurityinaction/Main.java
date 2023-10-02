@@ -13,9 +13,12 @@ import static spark.Spark.post;
 import static spark.Spark.secure;
 import static spark.Spark.staticFiles;
 
-import java.net.URI;
+import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.KeyStore;
+
+import javax.crypto.SecretKey;
 
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
@@ -29,8 +32,10 @@ import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.OAuth2TokenStore;
-import com.manning.apisecurityinaction.token.SecureTokenStore;
+import com.manning.apisecurityinaction.token.SignedJwtTokenStore;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 
 import spark.Request;
 import spark.Response;
@@ -51,10 +56,11 @@ public class Main {
 
         datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
-        // var keyPassword = System.getProperty("keystore.password",
-        // "changeit").toCharArray();
-        // var keyStore = KeyStore.getInstance("PKCS12");
-        // keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
+
+        var keyPassword = System.getProperty("keystore.password",
+                "changeit").toCharArray();
+        var keyStore = KeyStore.getInstance("PKCS12");
+        keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
 
         // var allowlistStore = new DatabaseTokenStore(database);
         // var encKey = keyStore.getKey("aes-key", keyPassword);
@@ -62,16 +68,18 @@ public class Main {
         // encKey, "https://localhost:4567",
         // allowlistStore);
 
-        // var macKey = keyStore.getKey("hmac-key", keyPassword);
-        // var algorithm = JWSAlgorithm.HS256;
-        // var singer = new MACSigner((SecretKey) macKey);
-        // var verifier = new MACVerifier((SecretKey) macKey);
-        // var tokenStore = new SignedJwtTokenStore(singer, algorithm, verifier,
-        // "https://localhost:4567");
+        var macKey = keyStore.getKey("hmac-key", keyPassword);
+        var algorithm = JWSAlgorithm.HS256;
+        var singer = new MACSigner((SecretKey) macKey);
+        var verifier = new MACVerifier((SecretKey) macKey);
+        var tokenStore = new SignedJwtTokenStore(singer, algorithm, verifier,
+                "https://localhost:4567");
 
-        var introspectionUri = URI.create("http://as.example.com:8080/oauth2/introspect");
-        var revocationUri = URI.create("http://as.example.com:8080/oauth2/revoke");
-        SecureTokenStore tokenStore = new OAuth2TokenStore(introspectionUri, revocationUri, "test", "password");
+        // var introspectionUri =
+        // URI.create("http://as.example.com:8080/oauth2/introspect");
+        // var revocationUri = URI.create("http://as.example.com:8080/oauth2/revoke");
+        // SecureTokenStore tokenStore = new OAuth2TokenStore(introspectionUri,
+        // revocationUri, "test", "password");
 
         var tokenCtrl = new TokenController(tokenStore);
         var userCtrl = new UserController(database);
@@ -96,9 +104,9 @@ public class Main {
         before(tokenCtrl::validateToken);
         before(auditCtrl::logRequest);
 
-        // before("/sessions", userCtrl.requireScope("POST", "full_access"));
-        // before("/sessions", userCtrl::requireAuthentication);
-        // post("/sessions", tokenCtrl::login);
+        before("/sessions", userCtrl.requireScope("POST", "full_access"));
+        before("/sessions", userCtrl::requireAuthentication);
+        post("/sessions", tokenCtrl::login);
         delete("/logout", tokenCtrl::logout);
 
         get("/logs", auditCtrl::readAuditLogs);
