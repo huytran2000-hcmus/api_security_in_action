@@ -4,11 +4,9 @@ import static spark.Spark.halt;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
 import java.util.Set;
 
 import org.dalesbred.Database;
-import org.dalesbred.query.QueryBuilder;
 import org.json.JSONObject;
 
 import com.lambdaworks.crypto.SCryptUtil;
@@ -92,6 +90,20 @@ public class UserController {
         }
     }
 
+    public void lookupPermissions(Request request, Response response) {
+        requireAuthentication(request, response);
+        var spaceId = Long.parseLong(request.params(":spaceId"));
+        var username = (String) request.attribute(USERNAME_ATTR_KEY);
+
+        var perms = database.findOptional(String.class,
+                "SELECT rp.perms " +
+                        "FROM role_permissions rp join user_roles ur ON rp.role_id = ur.role_id " +
+                        "where ur.space_id = ? AND ur.user_id = ?",
+                spaceId,
+                username).orElse("");
+        request.attribute("perms", perms);
+    }
+
     public Filter requirePermission(String method, String permission) {
         return (request, response) -> {
             if (!method.equalsIgnoreCase(request.requestMethod())) {
@@ -99,27 +111,8 @@ public class UserController {
             }
 
             requireAuthentication(request, response);
-            var spaceId = Long.parseLong(request.params(":spaceId"));
-            var username = (String) request.attribute(USERNAME_ATTR_KEY);
-
-            List<String> groups = request.attribute("groups");
-
-            var queryBuilder = new QueryBuilder(
-                    "SELECT perms from permissions " +
-                            "WHERE space_id = ? " +
-                            "AND (user_or_group_id = ? ",
-                    spaceId,
-                    username);
-
-            if (groups != null) {
-                for (var group : groups) {
-                    queryBuilder.append("OR user_or_group_id = ? ", group);
-                }
-            }
-            queryBuilder.append(")");
-            var perms = database.findAll(String.class, queryBuilder.build());
-
-            if (perms.stream().noneMatch(p -> p.contains(permission))) {
+            String perms = request.attribute("perms");
+            if (perms == null || !perms.contains(permission)) {
                 halt(403);
             }
         };

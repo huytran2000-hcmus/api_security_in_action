@@ -117,6 +117,7 @@ public class Main {
         before("/spaces", userCtrl.requireScope("POST", "create_space"));
         post("/spaces", spaceCtrl::createSpace);
 
+        before("/spaces/:spaceId/*", userCtrl::lookupPermissions);
         before("/spaces/:spaceId", userCtrl.requireScope("POST", "read_space"));
         before("/spaces/:spaceId", userCtrl.requirePermission("GET", "r"));
         get("/spaces/:spaceId", spaceCtrl::readSpace);

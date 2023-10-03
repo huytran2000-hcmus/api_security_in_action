@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 
 import org.dalesbred.Database;
 import org.json.JSONArray;
@@ -13,6 +14,7 @@ import spark.Request;
 import spark.Response;
 
 public class SpaceController {
+    private static final Set<String> DEFINED_ROLES = Set.of("owner", "moderator", "member", "observer");
     private final Database database;
 
     public SpaceController(Database database) {
@@ -36,9 +38,9 @@ public class SpaceController {
             var spaceId = database.findUniqueLong("SELECT NEXT VALUE FOR space_id_seq");
             database.updateUnique("INSERT INTO spaces (space_id, name, owner) VALUES(?, ?, ?);", spaceId, spaceName,
                     owner);
-            database.updateUnique("INSERT INTO user_permissions (space_id, user_id, perms) " +
+            database.updateUnique("INSERT INTO user_roles (space_id, user_id, role_id) " +
                     "VALUES(?, ?, ?);",
-                    spaceId, owner, "rwd");
+                    spaceId, owner, "owner");
 
             response.status(201);
             var uri = "/spaces/" + spaceId;
@@ -52,21 +54,21 @@ public class SpaceController {
         var json = new JSONObject(request.body());
         var spaceId = Long.parseLong(request.params(":spaceId"));
         var userToAdd = json.getString("username");
-        var perms = json.getString("permissions");
+        var role = json.optString("role", "member");
 
-        if (!perms.matches("r?w?d?")) {
-            throw new IllegalArgumentException("invalid permissions");
+        if (!DEFINED_ROLES.contains(role)) {
+            throw new IllegalArgumentException("invalid role");
         }
 
         database.updateUnique(
-                "INSERT INTO user_permissions(space_id, user_id, perms) " +
+                "INSERT INTO user_roles(space_id, user_id, role_id) " +
                         "VALUES(?, ?, ?)",
-                spaceId, userToAdd, perms);
+                spaceId, userToAdd, role);
 
         response.status(200);
         return new JSONObject()
                 .put("username", userToAdd)
-                .put("permissions", perms);
+                .put("role", role);
     }
 
     public Space readSpace(Request request, Response response) {
