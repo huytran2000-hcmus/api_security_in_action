@@ -17,6 +17,7 @@ import spark.Response;
 
 public class UserController {
     public static final String USERNAME_ATTR_KEY = "user_id";
+    public static final String GROUP_ATTR_KEY = "groups";
     public static final String ATTRS_ATTR_KEY = "attributes";
     public static final String SCOPE_ATTR_KEY = "scope";
 
@@ -77,7 +78,7 @@ public class UserController {
                     "FROM group_members " +
                     "WHERE user_id = ?",
                     username);
-            request.attribute("groups", groups);
+            request.attribute(GROUP_ATTR_KEY, groups);
         }
     }
 

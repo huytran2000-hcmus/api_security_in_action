@@ -28,6 +28,7 @@ import org.json.JSONObject;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.AuditController;
+import com.manning.apisecurityinaction.controller.DroolsAccessController;
 import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
@@ -86,6 +87,7 @@ public class Main {
         var auditCtrl = new AuditController(database);
         var spaceCtrl = new SpaceController(database);
         var moderatorCtrl = new Moderator(database);
+        var droolCtrl = new DroolsAccessController();
 
         before(new CORSFilter("https://localhost:9999"));
 
@@ -103,6 +105,7 @@ public class Main {
         before(userCtrl::authenticate);
         before(tokenCtrl::validateToken);
         before(auditCtrl::logRequest);
+        before(droolCtrl::enforcePolicy);
 
         before("/sessions", userCtrl.requireScope("POST", "full_access"));
         before("/sessions", userCtrl::requireAuthentication);
