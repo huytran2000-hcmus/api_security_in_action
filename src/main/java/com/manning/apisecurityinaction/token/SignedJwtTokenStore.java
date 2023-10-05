@@ -15,7 +15,7 @@ import com.nimbusds.jwt.SignedJWT;
 
 import spark.Request;
 
-public class SignedJwtTokenStore implements SecureTokenStore {
+public class SignedJwtTokenStore implements AuthenticatedTokenStore {
     private final JWSSigner singer;
     private final JWSAlgorithm algorithm;
     private final JWSVerifier verifier;

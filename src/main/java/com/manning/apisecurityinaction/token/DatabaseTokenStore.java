@@ -15,7 +15,7 @@ import org.json.JSONObject;
 
 import spark.Request;
 
-public class DatabaseTokenStore implements SecureTokenStore {
+public class DatabaseTokenStore implements ConfidentialTokenStore {
     private final Database database;
     private final SecureRandom rand;
 
@@ -36,7 +36,7 @@ public class DatabaseTokenStore implements SecureTokenStore {
     @Override
     public String create(Request request, Token token) {
         var tokenId = randomId();
-        var hashedTokenId = sha256(tokenId);
+        var hashedTokenId = hash(tokenId);
         var attrs = new JSONObject(token.attributes).toString();
 
         database.updateUnique("INSERT INTO tokens(token_id, user_id, expiry, attributes) VALUES(?, ?, ?, ?)",
@@ -50,7 +50,7 @@ public class DatabaseTokenStore implements SecureTokenStore {
 
     @Override
     public Optional<Token> read(Request request, String tokenId) {
-        var hashTokenId = sha256(tokenId);
+        var hashTokenId = hash(tokenId);
         return database.findOptional(this::readToken, "SELECT user_id, expiry, attributes " +
                 "FROM tokens " +
                 "WHERE token_id = ?", hashTokenId);
@@ -58,7 +58,7 @@ public class DatabaseTokenStore implements SecureTokenStore {
 
     @Override
     public void revoke(Request request, String tokenId) {
-        var hashTokenId = sha256(tokenId);
+        var hashTokenId = hash(tokenId);
         database.updateUnique("DELETE FROM tokens WHERE token_id = ?", hashTokenId);
     }
 
@@ -69,7 +69,9 @@ public class DatabaseTokenStore implements SecureTokenStore {
         var attrsJson = new JSONObject(res.getString(i++));
 
         var token = new Token(userId, expiry);
-        attrsJson.keySet().stream().map(key -> token.attributes.put(key, attrsJson.getString(key)));
+        for (var key : attrsJson.keySet()) {
+            token.attributes.put(key, attrsJson.getString(key));
+        }
 
         return token;
     }
@@ -78,7 +80,7 @@ public class DatabaseTokenStore implements SecureTokenStore {
         database.update("DELETE FROM tokens WHERE expiry < current_timestamp");
     }
 
-    static byte[] sha256(String tokenId) {
+    static byte[] hash(String tokenId) {
         try {
             var sha = MessageDigest.getInstance("SHA-256");
             return sha.digest(tokenId.getBytes(StandardCharsets.UTF_8));

@@ -28,15 +28,17 @@ import org.json.JSONObject;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.manning.apisecurityinaction.controller.AuditController;
+import com.manning.apisecurityinaction.controller.CapabilityController;
 import com.manning.apisecurityinaction.controller.DroolsAccessController;
 import com.manning.apisecurityinaction.controller.Moderator;
 import com.manning.apisecurityinaction.controller.SpaceController;
 import com.manning.apisecurityinaction.controller.TokenController;
 import com.manning.apisecurityinaction.controller.UserController;
-import com.manning.apisecurityinaction.token.SignedJwtTokenStore;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
+import com.manning.apisecurityinaction.controller.UserController.Permission;
+import com.manning.apisecurityinaction.token.DatabaseTokenStore;
+import com.manning.apisecurityinaction.token.EncryptedJwtTokenStore;
+import com.manning.apisecurityinaction.token.HmacTokenStore;
+import com.manning.apisecurityinaction.token.SecureTokenStore;
 
 import spark.Request;
 import spark.Response;
@@ -64,17 +66,15 @@ public class Main {
         keyStore.load(new FileInputStream("keystore.p12"), keyPassword);
 
         // var allowlistStore = new DatabaseTokenStore(database);
-        // var encKey = keyStore.getKey("aes-key", keyPassword);
-        // SecureTokenStore tokenStore = new RevokableEncryptedJwtTokenStore((SecretKey)
-        // encKey, "https://localhost:4567",
-        // allowlistStore);
+        var encKey = keyStore.getKey("aes-key", keyPassword);
+        SecureTokenStore tokenStore = new EncryptedJwtTokenStore((SecretKey) encKey, "https://localhost:4567");
 
         var macKey = keyStore.getKey("hmac-key", keyPassword);
-        var algorithm = JWSAlgorithm.HS256;
-        var singer = new MACSigner((SecretKey) macKey);
-        var verifier = new MACVerifier((SecretKey) macKey);
-        var tokenStore = new SignedJwtTokenStore(singer, algorithm, verifier,
-                "https://localhost:4567");
+        // var algorithm = JWSAlgorithm.HS256;
+        // var singer = new MACSigner((SecretKey) macKey);
+        // var verifier = new MACVerifier((SecretKey) macKey);
+        // var tokenStore = new SignedJwtTokenStore(singer, algorithm, verifier,
+        // "https://localhost:4567");
 
         // var introspectionUri =
         // URI.create("http://as.example.com:8080/oauth2/introspect");
@@ -82,10 +82,14 @@ public class Main {
         // SecureTokenStore tokenStore = new OAuth2TokenStore(introspectionUri,
         // revocationUri, "test", "password");
 
+        var dbTokenStore = new DatabaseTokenStore(database);
+        var capabilityStore = HmacTokenStore.wrap(dbTokenStore, macKey);
+
         var tokenCtrl = new TokenController(tokenStore);
+        var capabilityCtrl = new CapabilityController(capabilityStore);
         var userCtrl = new UserController(database);
         var auditCtrl = new AuditController(database);
-        var spaceCtrl = new SpaceController(database);
+        var spaceCtrl = new SpaceController(database, capabilityCtrl);
         var moderatorCtrl = new Moderator(database);
         var droolCtrl = new DroolsAccessController();
 
@@ -120,27 +124,33 @@ public class Main {
         before("/spaces", userCtrl.requireScope("POST", "create_space"));
         post("/spaces", spaceCtrl::createSpace);
 
-        before("/spaces/:spaceId/*", userCtrl::lookupPermissions);
-        before("/spaces/:spaceId", userCtrl.requireScope("POST", "read_space"));
-        before("/spaces/:spaceId", userCtrl.requirePermission("GET", "r"));
+        before("/spaces/:spaceId", userCtrl::lookupPermissions);
+        before("/spaces/:spaceId", capabilityCtrl::lookupPermissions);
+        before("/spaces/:spaceId", userCtrl.requireScope("GET", "read_space"));
+        before("/spaces/:spaceId", userCtrl.requirePermission("GET",
+                Permission.read));
         get("/spaces/:spaceId", spaceCtrl::readSpace);
 
+        before("/spaces/:spaceId/*", userCtrl::lookupPermissions);
+        before("/spaces/:spaceId/*", capabilityCtrl::lookupPermissions);
+
         before("/spaces/:spaceId/messages", userCtrl.requireScope("POST", "post_message"));
-        before("/spaces/:spaceId/messages", userCtrl.requirePermission("POST", "r"));
+        before("/spaces/:spaceId/messages", userCtrl.requirePermission("POST", Permission.write));
         post("/spaces/:spaceId/messages", spaceCtrl::postMessage);
 
         before("/spaces/:spaceId/messages*", userCtrl.requireScope("GET", "read_message"));
-        before("/spaces/:spaceId/message", userCtrl.requirePermission("GET", "r"));
+        before("/spaces/:spaceId/messages", userCtrl.requirePermission("GET", Permission.read));
         get("/spaces/:spaceId/messages", spaceCtrl::findMessages);
-        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("GET", "r"));
+        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("GET", Permission.read));
         get("/spaces/:spaceId/messages/:msgId", spaceCtrl::readMessage);
 
         before("/spaces/:spaceId/messages/*", userCtrl.requireScope("DELETE", "delete_message"));
-        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("DELETE", "d"));
+        before("/spaces/:spaceId/messages/*", userCtrl.requirePermission("DELETE", Permission.delete));
         delete("/spaces/:spaceId/messages/:msgId", moderatorCtrl::deletePost);
 
         before("/spaces/:spaceId/members", userCtrl.requireScope("POST", "add_member"));
-        before("/spaces/:spaceId/members", userCtrl.requirePermission("POST", "rwd"));
+        before("/spaces/:spaceId/members", userCtrl.requirePermission("POST",
+                Permission.full));
         post("/spaces/:spaceId/members", spaceCtrl::addMember);
 
         afterAfter((request, response) -> {

@@ -2,13 +2,17 @@ package com.manning.apisecurityinaction.controller;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.dalesbred.Database;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import com.manning.apisecurityinaction.controller.UserController.Permission;
 
 import spark.Request;
 import spark.Response;
@@ -16,9 +20,11 @@ import spark.Response;
 public class SpaceController {
     private static final Set<String> DEFINED_ROLES = Set.of("owner", "moderator", "member", "observer");
     private final Database database;
+    private final CapabilityController capCtrl;
 
-    public SpaceController(Database database) {
+    public SpaceController(Database database, CapabilityController capCtrl) {
         this.database = database;
+        this.capCtrl = capCtrl;
     }
 
     public JSONObject createSpace(Request request, Response response) throws SQLException {
@@ -42,11 +48,24 @@ public class SpaceController {
                     "VALUES(?, ?, ?);",
                     spaceId, owner, "owner");
 
-            response.status(201);
-            var uri = "/spaces/" + spaceId;
-            response.header("Location", uri);
+            var expiry = Duration.ofDays(100000);
+            var spacePath = "/spaces/" + spaceId;
+            var msgPath = spacePath + "/messages";
 
-            return new JSONObject().put("name", spaceName).put("uri", uri).put("owner", owner);
+            var uri = capCtrl.createUri(request, spacePath, Permission.full, expiry);
+            var readOnlyUri = capCtrl.createUri(request, spacePath, Permission.read, expiry);
+            var msgsUri = capCtrl.createUri(request, msgPath, Permission.full, expiry);
+            var msgsReadWriteUri = capCtrl.createUri(request, msgPath, Permission.read.combine(Permission.write),
+                    expiry);
+            var msgsReadOnlyUri = capCtrl.createUri(request, msgPath, Permission.read, expiry);
+
+            response.status(201);
+            response.header("Location", uri.toASCIIString());
+
+            return new JSONObject().put("name", spaceName).put("owner", owner).put("uri", uri)
+                    .put("uri-r", readOnlyUri)
+                    .put("messages-rwd", msgsUri).put("messages-rw", msgsReadWriteUri)
+                    .put("messages-r", msgsReadOnlyUri);
         });
     }
 
@@ -71,7 +90,7 @@ public class SpaceController {
                 .put("role", role);
     }
 
-    public Space readSpace(Request request, Response response) {
+    public JSONObject readSpace(Request request, Response response) {
         var spaceId = Long.parseLong(request.params(":spaceId"));
 
         var space = database.findUnique(Space.class,
@@ -81,7 +100,15 @@ public class SpaceController {
                 spaceId);
 
         response.status(200);
-        return space;
+
+        var expiry = Duration.ofDays(100000);
+        var spacePath = "/spaces/" + spaceId;
+        var msgPath = spacePath + "/messages";
+        Permission perms = request.attribute("perms");
+        var msgsUri = capCtrl.createUri(request, msgPath, perms, expiry);
+
+        var spaceJson = new JSONObject().put("id", space.spaceId).put("name", space.name);
+        return new JSONObject().put("space", spaceJson).put("messages", msgsUri);
     }
 
     public JSONObject postMessage(Request request, Response response) {
@@ -105,9 +132,14 @@ public class SpaceController {
                     msgId, userId, spaceId, message);
 
             response.status(201);
-            var uri = "/spaces/" + spaceId + "/messages/" + msgId;
-            response.header("Location", uri);
-            return new JSONObject().put("uri", uri);
+            var msgPath = "/spaces/" + spaceId + "/messages/" + msgId;
+            var msgUri = capCtrl.createUri(request, msgPath, Permission.read.combine(Permission.write),
+                    Duration.ofMinutes(5));
+            var msgReadOnlyUri = capCtrl.createUri(request, msgPath, Permission.read,
+                    Duration.ofDays(365));
+
+            response.header("Location", msgPath);
+            return new JSONObject().put("uri", msgUri).put("uri-r", msgReadOnlyUri);
         });
     }
 
@@ -132,14 +164,17 @@ public class SpaceController {
             since = Instant.now().minus(1, ChronoUnit.DAYS);
         }
         var spaceId = Long.parseLong(request.params(":spaceId"));
-        var messages = database.findAll(Message::recordToJson,
-                "SELECT msg_id, author, space_id, msg_time, msg_text " +
+        var messages = database.findAll(Long.class,
+                "SELECT msg_id " +
                         "FROM messages " +
                         "WHERE space_id = ? AND msg_time > ?",
                 spaceId, since);
 
         response.status(200);
-        return new JSONArray(messages);
+        var perms = request.<Permission>attribute("perms").subtract(Permission.write);
+        return new JSONArray(messages.stream().map(id -> "/spaces/" + spaceId + "/messages/" + id)
+                .map(path -> capCtrl.createUri(request, path, perms, Duration.ofMinutes(10)))
+                .collect(Collectors.toList()));
     }
 
     public static class Space {

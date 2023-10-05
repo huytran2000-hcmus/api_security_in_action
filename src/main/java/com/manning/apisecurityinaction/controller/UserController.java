@@ -19,6 +19,7 @@ public class UserController {
     public static final String USERNAME_ATTR_KEY = "user_id";
     public static final String GROUP_ATTR_KEY = "groups";
     public static final String ATTRS_ATTR_KEY = "attributes";
+    public static final String PERMS_ATTR_KEY = "perms";
     public static final String SCOPE_ATTR_KEY = "scope";
 
     public static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
@@ -51,6 +52,8 @@ public class UserController {
     }
 
     public void authenticate(Request request, Response response) {
+        request.attribute(PERMS_ATTR_KEY, new Permission());
+
         var authHeader = request.headers("Authorization");
         if (authHeader == null || !authHeader.startsWith(authPrefix)) {
             return;
@@ -96,24 +99,26 @@ public class UserController {
         var spaceId = Long.parseLong(request.params(":spaceId"));
         var username = (String) request.attribute(USERNAME_ATTR_KEY);
 
-        var perms = database.findOptional(String.class,
+        var permsVal = database.findOptional(String.class,
                 "SELECT rp.perms " +
                         "FROM role_permissions rp join user_roles ur ON rp.role_id = ur.role_id " +
                         "where ur.space_id = ? AND ur.user_id = ?",
                 spaceId,
                 username).orElse("");
-        request.attribute("perms", perms);
+        var perms = Permission.fromString(permsVal);
+        Permission currentPerms = request.attribute(PERMS_ATTR_KEY);
+        request.attribute("perms", currentPerms.combine(perms));
     }
 
-    public Filter requirePermission(String method, String permission) {
+    public Filter requirePermission(String method, Permission permission) {
         return (request, response) -> {
             if (!method.equalsIgnoreCase(request.requestMethod())) {
                 return;
             }
 
             requireAuthentication(request, response);
-            String perms = request.attribute("perms");
-            if (perms == null || !perms.contains(permission)) {
+            Permission perms = request.attribute("perms");
+            if (perms == null || !perms.satisfies(permission)) {
                 halt(403);
             }
         };
@@ -135,5 +140,60 @@ public class UserController {
                 halt(403);
             }
         };
+    }
+
+    public static class Permission {
+        public final static Permission read = new Permission((byte) 1);
+        public final static Permission write = new Permission((byte) 2);
+        public final static Permission delete = new Permission((byte) 4);
+        public final static Permission full = new Permission((byte) 7);
+        private final static byte[] allPermBits = new byte[] { 1, 2, 4 };
+        private final static String[] allPermValues = new String[] { "r", "w", "d" };
+        private byte bits = 0;
+
+        private Permission(byte... permBits) {
+            for (var b : permBits) {
+                bits += b;
+            }
+        }
+
+        public static Permission fromString(String val) {
+            var perms = new Permission();
+            for (var i = 0; i < allPermBits.length; i++) {
+                if (val.contains(allPermValues[i])) {
+                    perms.bits |= allPermBits[i];
+                }
+            }
+
+            return perms;
+        }
+
+        public Permission combine(Permission extra) {
+            return new Permission((byte) (bits | extra.bits));
+        }
+
+        public Permission subtract(Permission other) {
+            var newBits = bits;
+
+            var intersectBits = (byte) (newBits & other.bits);
+            newBits -= intersectBits;
+
+            return new Permission(newBits);
+        }
+
+        public boolean satisfies(Permission require) {
+            return (bits & require.bits) == require.bits;
+        }
+
+        @Override
+        public String toString() {
+            var val = "";
+            for (var i = 0; i < allPermBits.length; i++) {
+                if ((bits & allPermBits[i]) != 0) {
+                    val += allPermValues[i];
+                }
+            }
+            return val;
+        }
     }
 }

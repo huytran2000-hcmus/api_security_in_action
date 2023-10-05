@@ -14,7 +14,7 @@ import spark.Request;
 import spark.Response;
 
 public class TokenController {
-    private static final String DEFAULT_SCOPES = "create_space post_message read_message list_message " +
+    private static final String DEFAULT_SCOPES = "create_space read_space post_message read_message list_message " +
             "delete_message add_member";
     private final SecureTokenStore store;
 
