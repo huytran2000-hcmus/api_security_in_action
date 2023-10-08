@@ -104,7 +104,7 @@ public class SpaceController {
         var expiry = Duration.ofDays(100000);
         var spacePath = "/spaces/" + spaceId;
         var msgPath = spacePath + "/messages";
-        Permission perms = request.attribute("perms");
+        Permission perms = request.attribute(UserController.PERMS_ATTR_KEY);
         var msgsUri = capCtrl.createUri(request, msgPath, perms, expiry);
 
         var spaceJson = new JSONObject().put("id", space.spaceId).put("name", space.name);
@@ -171,7 +171,7 @@ public class SpaceController {
                 spaceId, since);
 
         response.status(200);
-        var perms = request.<Permission>attribute("perms").subtract(Permission.write);
+        var perms = request.<Permission>attribute(UserController.PERMS_ATTR_KEY).subtract(Permission.write);
         return new JSONArray(messages.stream().map(id -> "/spaces/" + spaceId + "/messages/" + id)
                 .map(path -> capCtrl.createUri(request, path, perms, Duration.ofMinutes(10)))
                 .collect(Collectors.toList()));

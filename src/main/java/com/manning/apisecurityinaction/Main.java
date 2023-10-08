@@ -153,6 +153,9 @@ public class Main {
                 Permission.full));
         post("/spaces/:spaceId/members", spaceCtrl::addMember);
 
+        before("/capabilities", userCtrl::requireAuthentication);
+        post("/capabilities", capabilityCtrl::share);
+
         afterAfter((request, response) -> {
             response.header("Server", "");
             response.type("application/json;charset=utf-8");
