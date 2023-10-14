@@ -37,7 +37,7 @@ import com.manning.apisecurityinaction.controller.UserController;
 import com.manning.apisecurityinaction.controller.UserController.Permission;
 import com.manning.apisecurityinaction.token.DatabaseTokenStore;
 import com.manning.apisecurityinaction.token.EncryptedJwtTokenStore;
-import com.manning.apisecurityinaction.token.HmacTokenStore;
+import com.manning.apisecurityinaction.token.MacaroonTokenStore;
 import com.manning.apisecurityinaction.token.SecureTokenStore;
 
 import spark.Request;
@@ -83,7 +83,7 @@ public class Main {
         // revocationUri, "test", "password");
 
         var dbTokenStore = new DatabaseTokenStore(database);
-        var capabilityStore = HmacTokenStore.wrap(dbTokenStore, macKey);
+        var capabilityStore = MacaroonTokenStore.wrap(dbTokenStore, macKey);
 
         var tokenCtrl = new TokenController(tokenStore);
         var capabilityCtrl = new CapabilityController(capabilityStore);
