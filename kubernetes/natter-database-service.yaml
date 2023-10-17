@@ -5,7 +5,7 @@ metadata:
   namespace: natter-api
 spec:
   selector:
-    app: natter-api
+    app: natter-database
   ports:
     - protocol: TCP
       port: 9092

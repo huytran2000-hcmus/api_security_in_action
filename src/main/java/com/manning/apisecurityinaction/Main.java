@@ -49,15 +49,17 @@ public class Main {
 
         staticFiles.location("/public");
         staticFiles.expireTime(1);
-        secure("localhost.p12",
-                "changeit",
-                null,
-                null);
-        var datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter", "password");
+        // secure("localhost.p12",
+        //         "changeit",
+        //         null,
+        //         null);
+
+        var jdbcUrl = "jdbc:h2:tcp://natter-database-service:9092/mem:natter";
+        var datasource = JdbcConnectionPool.create(jdbcUrl, "natter", "password");
         var database = Database.forDataSource(datasource);
         createTables(database);
 
-        datasource = JdbcConnectionPool.create("jdbc:h2:mem:natter", "natter_api_user", "password");
+        datasource = JdbcConnectionPool.create(jdbcUrl, "natter_api_user", "password");
         database = Database.forDataSource(datasource);
 
         var keyPassword = System.getProperty("keystore.password",
