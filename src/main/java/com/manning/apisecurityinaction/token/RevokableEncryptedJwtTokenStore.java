@@ -92,7 +92,6 @@ public class RevokableEncryptedJwtTokenStore implements SecureTokenStore {
 
     @Override
     public void revoke(Request request, String tokenId) {
-        var allowlistToken = allowlistStore.read(request, tokenId);
         try {
             var jwt = EncryptedJWT.parse(tokenId);
             var decrypter = new DirectDecrypter(encKey);
