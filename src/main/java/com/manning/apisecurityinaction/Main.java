@@ -10,7 +10,6 @@ import static spark.Spark.internalServerError;
 import static spark.Spark.notFound;
 import static spark.Spark.port;
 import static spark.Spark.post;
-import static spark.Spark.secure;
 import static spark.Spark.staticFiles;
 
 import java.io.FileInputStream;
@@ -50,9 +49,9 @@ public class Main {
         staticFiles.location("/public");
         staticFiles.expireTime(1);
         // secure("localhost.p12",
-        //         "changeit",
-        //         null,
-        //         null);
+        // "changeit",
+        // null,
+        // null);
 
         var jdbcUrl = "jdbc:h2:tcp://natter-database-service:9092/mem:natter";
         var datasource = JdbcConnectionPool.create(jdbcUrl, "natter", "password");

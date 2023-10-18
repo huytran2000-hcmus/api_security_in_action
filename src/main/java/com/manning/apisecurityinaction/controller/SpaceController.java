@@ -1,11 +1,19 @@
 package com.manning.apisecurityinaction.controller;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.dalesbred.Database;
@@ -13,6 +21,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.manning.apisecurityinaction.controller.UserController.Permission;
+import com.nimbusds.jose.util.StandardCharset;
 
 import spark.Request;
 import spark.Response;
@@ -21,6 +30,8 @@ public class SpaceController {
     private static final Set<String> DEFINED_ROLES = Set.of("owner", "moderator", "member", "observer");
     private final Database database;
     private final CapabilityController capCtrl;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final URI linkPreviewService = URI.create("http://natter-link-preview-service:4567");
 
     public SpaceController(Database database, CapabilityController capCtrl) {
         this.database = database;
@@ -152,6 +163,18 @@ public class SpaceController {
                         "WHERE msg_id = ? AND space_id = ?",
                 msgId, spaceId);
 
+        var linkPattern = Pattern.compile("https?://\\S+");
+        var matcher = linkPattern.matcher(msg.msgText);
+        int start = 0;
+        while (matcher.find(start)) {
+            var url = matcher.group(0);
+            var preview = fetchLinkPreview(url);
+            if (preview != null) {
+                msg.links.add(preview);
+            }
+            start = matcher.end();
+        }
+
         response.status(200);
         return msg;
     }
@@ -175,6 +198,20 @@ public class SpaceController {
         return new JSONArray(messages.stream().map(id -> "/spaces/" + spaceId + "/messages/" + id)
                 .map(path -> capCtrl.createUri(request, path, perms, Duration.ofMinutes(10)))
                 .collect(Collectors.toList()));
+    }
+
+    private JSONObject fetchLinkPreview(String link) {
+        var url = linkPreviewService.resolve("/preview?url=" + URLEncoder.encode(link, StandardCharset.UTF_8));
+        var request = HttpRequest.newBuilder(url).GET().build();
+
+        try {
+            var response = httpClient.send(request, BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return new JSONObject(response.body());
+            }
+        } catch (Exception ex) {
+        }
+        return null;
     }
 
     public static class Space {
@@ -205,6 +242,7 @@ public class SpaceController {
         private final String author;
         private final Instant msgTime;
         private final String msgText;
+        private final List<JSONObject> links = new ArrayList<>();
 
         public Message(long msgId, long spaceId, String author, Instant msgTime, String msgText) {
             this.msgId = msgId;
@@ -221,7 +259,8 @@ public class SpaceController {
                     .put("space_id", spaceId)
                     .put("author", author)
                     .put("msg_time", msgTime)
-                    .put("msg_text", msgText);
+                    .put("msg_text", msgText)
+                    .put("links", links);
 
             return msg.toString();
         }

@@ -24,7 +24,7 @@ public class LinkPreviewer {
 
         get("/preview", (request, response) -> {
             var url = request.queryParams("url");
-            var doc = Jsoup.connect(url).timeout(3000).get();
+            var doc = Jsoup.connect(url).timeout(10000).get();
             var title = doc.title();
             var description = doc.head().selectFirst("meta[property='og:description']");
             var img = doc.head().selectFirst("meta[property='og:image']");
