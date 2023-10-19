@@ -16,6 +16,7 @@ import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.util.Set;
 
 import javax.crypto.SecretKey;
 
@@ -100,6 +101,18 @@ public class Main {
         before((request, response) -> {
             if (!rateLimiter.tryAcquire()) {
                 response.header("Retry-After", "2");
+            }
+        });
+
+        var expectedHostNames = Set.of(
+                "api.natter.com",
+                "api.natter.com:4567",
+                "natter-link-preview-service:4567",
+                "natter-link-preview-service.natter-api:4567",
+                "natter-link-preview-service.natter-api.svc.cluster.local:4567");
+        before((request, response) -> {
+            if (!expectedHostNames.contains(request.host())) {
+                halt(400);
             }
         });
         before((request, response) -> {
