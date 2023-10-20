@@ -78,7 +78,7 @@ public class LinkPreviewer {
 
     private static boolean isBlockedAddress(String url) throws UnknownHostException {
         var host = URI.create(url).getHost();
-        for (var ipAddr : InetAddress.getAllByName(url)) {
+        for (var ipAddr : InetAddress.getAllByName(host)) {
             if (ipAddr.isLoopbackAddress() || ipAddr.isLinkLocalAddress() || ipAddr.isSiteLocalAddress()
                     || ipAddr.isMulticastAddress() || ipAddr.isAnyLocalAddress() || isUniqueLocalAddress(ipAddr)) {
                 return true;
