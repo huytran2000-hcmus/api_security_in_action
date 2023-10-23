@@ -27,3 +27,4 @@ spec:
                 - all
           ports:
             - containerPort: 4567
+      serviceAccountName: natter-api

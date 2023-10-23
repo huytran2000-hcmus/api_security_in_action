@@ -27,3 +27,4 @@ spec:
                 - all
           ports:
             - containerPort: 9092
+      serviceAccountName: natter-database
