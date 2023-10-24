@@ -31,6 +31,8 @@ run:
 	kubectl apply -f kubernetes/natter-database-deployment.yaml
 	kubectl apply -f kubernetes/natter-link-preview-deployment.yaml
 	kubectl apply -f kubernetes/natter-api-deployment.yaml
+	kubectl create secret tls natter-tls -n natter-api --key=api.natter.local-key.pem --cert=api.natter.local.pem
+	kubectl apply -f kubernetes/natter-ingress.yaml
 
 ## start: build and run natter's services 
 .PHONY: start

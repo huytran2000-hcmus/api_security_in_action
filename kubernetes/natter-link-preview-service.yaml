@@ -8,3 +8,5 @@ spec:
     app: natter-link-preview-service
   ports:
     - port: 4567
+      protocol: TCP
+      appProtocol: http
