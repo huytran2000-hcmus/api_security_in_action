@@ -85,6 +85,11 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
             <artifactId>jsoup</artifactId>
             <version>1.13.1</version>
         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.66</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
