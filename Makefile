@@ -22,7 +22,7 @@ build:
 
 ## run: run natter's services
 .PHONY: run
-run:
+run: context
 	kubectl apply -f kubernetes/natter-namespace.yaml
 	kubectl apply -f kubernetes/natter-service-accounts.yaml
 	kubectl apply -f kubernetes/natter-database-service.yaml
@@ -31,8 +31,9 @@ run:
 	kubectl apply -f kubernetes/natter-database-deployment.yaml
 	kubectl apply -f kubernetes/natter-link-preview-deployment.yaml
 	kubectl apply -f kubernetes/natter-api-deployment.yaml
-	kubectl create secret tls natter-tls -n natter-api --key=api.natter.local-key.pem --cert=api.natter.local.pem
+	kubectl create secret tls natter-tls --key=api.natter.local-key.pem --cert=api.natter.local.pem
 	kubectl apply -f kubernetes/natter-network-policies.yaml
+	kubectl create secret generic ca-secret -n natter-api --from-file=ca.crt="$(shell mkcert -CAROOT)/rootCA.pem"
 	kubectl apply -f kubernetes/natter-ingress.yaml
 
 ## start: build and run natter's services 
@@ -55,6 +56,7 @@ shutdown: context
 	kubectl delete --all serviceaccounts
 	kubectl config set-context --current --namespace default
 	kubectl delete --all networkpolicies
+	kubectl delete --all secrets
 	kubectl delete namespace natter-api
 
 ## mesh: service mesh natter

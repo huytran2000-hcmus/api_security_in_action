@@ -1,8 +1,14 @@
 package com.manning.apisecurityinaction.controller;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static spark.Spark.halt;
 
+import java.io.ByteArrayInputStream;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.Set;
 
@@ -24,6 +30,9 @@ public class UserController {
 
     public static final String USERNAME_PATTERN = "[a-zA-Z][a-zA-Z0-9]{1,29}";
     private static final String authPrefix = "Basic ";
+
+    private static final int DNS_TYPE = 2;
+
     private final Database database;
 
     public UserController(Database database) {
@@ -53,6 +62,13 @@ public class UserController {
 
     public void authenticate(Request request, Response response) {
         request.attribute(PERMS_ATTR_KEY, new Permission());
+
+        if ("SUCCESS".equals(request.headers("ssl-client-verify"))) {
+            response.header("X-Debug", "gay");
+            processClientCertificateAuth(request);
+            return;
+        }
+        response.header("X-Debug", "not-gay");
 
         var authHeader = request.headers("Authorization");
         if (authHeader == null || !authHeader.startsWith(authPrefix)) {
@@ -140,6 +156,34 @@ public class UserController {
                 halt(403);
             }
         };
+    }
+
+    public static X509Certificate decodeCert(String encodedCert) {
+        var pem = URLDecoder.decode(encodedCert, UTF_8);
+        try (var in = new ByteArrayInputStream(pem.getBytes(UTF_8))) {
+            var certFactory = CertificateFactory.getInstance("X.509");
+            return (X509Certificate) certFactory.generateCertificate(in);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    void processClientCertificateAuth(Request request) {
+        var pem = request.headers("ssl-client-cert");
+        var cert = decodeCert(pem);
+        try {
+            if (cert.getSubjectAlternativeNames() == null) {
+                return;
+            }
+            for (var san : cert.getSubjectAlternativeNames()) {
+                if ((Integer) san.get(0) == DNS_TYPE) {
+                    var sub = (String) san.get(1);
+                    request.attribute(USERNAME_ATTR_KEY, sub);
+                }
+            }
+        } catch (CertificateParsingException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static class Permission {
