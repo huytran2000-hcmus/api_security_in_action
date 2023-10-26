@@ -3,6 +3,13 @@ kind: Service
 metadata:
   name: natter-api-service
   namespace: natter-api
+  labels:
+    app.kubernetes.io/name: natter-api
+    app.kubernetes.io/intance: natter-api-1
+    app.kubernetes.io/version: 1.0.0-SNAPSHOT
+    app.kubernetes.io/componnent: server
+    app.kubernetes.io/part-of: natter
+    app.kubernetes.io/managed-by: make
 spec:
   type: NodePort
   selector:

@@ -3,6 +3,13 @@ kind: Deployment
 metadata:
   name: natter-database-deployment
   namespace: natter-api
+  labels:
+    app.kubernetes.io/name: natter-database
+    app.kubernetes.io/intance: natter-database-1
+    app.kubernetes.io/version: 1.4.197
+    app.kubernetes.io/componnent: database
+    app.kubernetes.io/part-of: natter
+    app.kubernetes.io/managed-by: make
 spec:
   selector:
     matchLabels:

@@ -3,6 +3,13 @@ kind: Service
 metadata:
   name: natter-link-preview-service
   namespace: natter-api
+  labels:
+    app.kubernetes.io/name: natter-link-preview
+    app.kubernetes.io/intance: natter-link-preview-1
+    app.kubernetes.io/version: 1.0.0-SNAPSHOT
+    app.kubernetes.io/componnent: service
+    app.kubernetes.io/part-of: natter
+    app.kubernetes.io/managed-by: make
 spec:
   selector:
     app: natter-link-preview-service

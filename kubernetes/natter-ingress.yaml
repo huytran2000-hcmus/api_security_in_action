@@ -3,6 +3,13 @@ kind: Ingress
 metadata:
   name: api-ingress
   namespace: natter-api
+  labels:
+    app.kubernetes.io/name: natter-ingress
+    app.kubernetes.io/intance: natter-ingress-1
+    app.kubernetes.io/version: 1.0.0-SNAPSHOT
+    app.kubernetes.io/componnent: ingress
+    app.kubernetes.io/part-of: natter
+    app.kubernetes.io/managed-by: make
   annotations:
     nginx.ingress.kubernetes.io/upstream-vhost: "$service_name.$namespace.svc.cluster.local:$service_port"
 spec:
