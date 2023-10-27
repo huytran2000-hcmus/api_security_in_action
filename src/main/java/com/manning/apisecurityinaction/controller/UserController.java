@@ -64,11 +64,9 @@ public class UserController {
         request.attribute(PERMS_ATTR_KEY, new Permission());
 
         if ("SUCCESS".equals(request.headers("ssl-client-verify"))) {
-            response.header("X-Debug", "gay");
             processClientCertificateAuth(request);
             return;
         }
-        response.header("X-Debug", "not-gay");
 
         var authHeader = request.headers("Authorization");
         if (authHeader == null || !authHeader.startsWith(authPrefix)) {

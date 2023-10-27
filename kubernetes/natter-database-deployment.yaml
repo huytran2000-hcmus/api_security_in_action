@@ -22,6 +22,10 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+      volumes:
+        - name: db-password-volume
+          secret:
+            secretName: db-password
       containers:
         - name: natter-database
           image: apisecurityinaction/h2database:latest
@@ -34,4 +38,8 @@ spec:
                 - all
           ports:
             - containerPort: 9092
+          volumeMounts:
+            - name: secret-volume
+              mountPath: "/etc/secrets/datababase"
+              readOnly: true
       serviceAccountName: natter-database

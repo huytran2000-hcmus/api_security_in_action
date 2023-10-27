@@ -54,8 +54,12 @@ public class Main {
         // null,
         // null);
 
+        var secretsPath = Paths.get("/etc/secrets/database");
+        var dbUsername = Files.readString(secretsPath.resolve("username"));
+        var dbPassword = Files.readString(secretsPath.resolve("password"));
+
         var jdbcUrl = "jdbc:h2:tcp://natter-database-service:9092/mem:natter";
-        var datasource = JdbcConnectionPool.create(jdbcUrl, "natter", "password");
+        var datasource = JdbcConnectionPool.create(jdbcUrl, dbUsername, dbPassword);
         var database = Database.forDataSource(datasource);
         createTables(database);
 

@@ -1,3 +1,4 @@
+include .envrc
 # ==================================================================================== #
 # HELPERS
 # ==================================================================================== #
@@ -28,6 +29,7 @@ run: context
 	kubectl apply -f kubernetes/natter-database-service.yaml
 	kubectl apply -f kubernetes/natter-link-preview-service.yaml
 	kubectl apply -f kubernetes/natter-api-service.yaml
+	kubectl create secret generic db-password --from-literal=username=${DB_USER} --from-literal=password=${DB_PASSWORD}
 	kubectl apply -f kubernetes/natter-database-deployment.yaml
 	kubectl apply -f kubernetes/natter-link-preview-deployment.yaml
 	kubectl apply -f kubernetes/natter-api-deployment.yaml
@@ -54,9 +56,10 @@ shutdown: context
 	kubectl delete --all service
 	kubectl delete --all deployment
 	kubectl delete --all serviceaccounts
-	kubectl config set-context --current --namespace default
 	kubectl delete --all networkpolicies
+	kubectl delete --all ingress
 	kubectl delete --all secrets
+	kubectl config set-context --current --namespace default
 	kubectl delete namespace natter-api
 
 ## mesh: service mesh natter
